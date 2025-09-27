@@ -89,8 +89,8 @@ The attack planner simplifies attack planning and execution by allowing players 
 #### **Step 1: Initial Configuration**
 - **Attack Group**: Dropdown with all available village groups
 - **Support Group**: Dropdown with all available village groups  
-- **Attack Unit 1 & 2**: Dropdowns with all world units (for timing calculations)
-- **Support Unit 1 & 2**: Dropdowns with all world units (for timing calculations)
+- **Attack Units**: Visual unit picker with icons (select any number for timing calculations)
+- **Support Units**: Visual unit picker with icons (select any number for timing calculations)
 - **Target Coordinates**: Textarea input (like Mass Command Timer)
 - **Arrival Time**: Absolute datetime input
 
@@ -120,10 +120,8 @@ const planState = {
     config: {
         attackGroup: groupId,
         supportGroup: groupId,
-        attackUnit1: 'ram',
-        attackUnit2: 'catapult', 
-        supportUnit1: 'heavy',
-        supportUnit2: 'archer',
+        attackUnits: ['ram', 'catapult', 'axe'], // Selected attack units for timing
+        supportUnits: ['heavy', 'archer'], // Selected support units for timing
         coordinates: ['500|500', '501|501'],
         arrivalTime: Date
     },

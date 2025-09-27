@@ -28,7 +28,7 @@ var scriptConfig = {
             'Support Group': 'Support Group',
             'Attack Units': 'Attack Units',
             'Support Units': 'Support Units',
-            'Select 2': 'Select 2',
+            'Select units for timing calculations': 'Select units for timing calculations',
             'Target Coordinates': 'Target Coordinates',
             'Arrival Time': 'Arrival Time',
             'Enter coordinates (e.g. 500|500 501|501)': 'Enter coordinates (e.g. 500|500 501|501)',
@@ -37,8 +37,8 @@ var scriptConfig = {
             'Close': 'Close',
             'All Villages': 'All Villages',
             'Loading...': 'Loading...',
-            'Please select exactly 2 attack units': 'Please select exactly 2 attack units',
-            'Please select exactly 2 support units': 'Please select exactly 2 support units',
+            'Please select at least 1 attack unit': 'Please select at least 1 attack unit',
+            'Please select at least 1 support unit': 'Please select at least 1 support unit',
             'Please select arrival time': 'Please select arrival time',
             'Please enter at least one coordinate': 'Please enter at least one coordinate',
             'Invalid coordinate format': 'Invalid coordinate format',
@@ -51,7 +51,7 @@ var scriptConfig = {
             'Support Group': 'Grupo de Apoio',
             'Attack Units': 'Unidades de Ataque',
             'Support Units': 'Unidades de Apoio',
-            'Select 2': 'Selecione 2',
+            'Select units for timing calculations': 'Selecione unidades para cálculos de tempo',
             'Target Coordinates': 'Coordenadas do Alvo',
             'Arrival Time': 'Hora de Chegada',
             'Enter coordinates (e.g. 500|500 501|501)': 'Digite as coordenadas (ex. 500|500 501|501)',
@@ -60,8 +60,8 @@ var scriptConfig = {
             'Close': 'Fechar',
             'All Villages': 'Todas as Aldeias',
             'Loading...': 'Carregando...',
-            'Please select exactly 2 attack units': 'Selecione exatamente 2 unidades de ataque',
-            'Please select exactly 2 support units': 'Selecione exatamente 2 unidades de apoio',
+            'Please select at least 1 attack unit': 'Selecione pelo menos 1 unidade de ataque',
+            'Please select at least 1 support unit': 'Selecione pelo menos 1 unidade de apoio',
             'Please select arrival time': 'Selecione a hora de chegada',
             'Please enter at least one coordinate': 'Digite pelo menos uma coordenada',
             'Invalid coordinate format': 'Formato de coordenada inválido',
@@ -88,10 +88,8 @@ $.getScript(
             config: {
                 attackGroup: null,
                 supportGroup: null,
-                attackUnit1: null,
-                attackUnit2: null,
-                supportUnit1: null,
-                supportUnit2: null,
+                attackUnits: [],
+                supportUnits: [],
                 coordinates: [],
                 arrivalTime: null
             },
@@ -148,23 +146,71 @@ $.getScript(
         // Fetch Village Groups
         async function fetchVillageGroups() {
             try {
-                const response = await jQuery.get(
-                    game_data.link_base_pure + 'overview_villages&mode=groups'
-                );
-                
-                const htmlDoc = jQuery.parseHTML(response);
                 const groups = [{ id: 0, name: twSDK.tt('All Villages') }];
                 
-                jQuery(htmlDoc).find('select[name="group"] option').each(function() {
-                    const groupId = parseInt(jQuery(this).val());
-                    const groupName = jQuery(this).text().trim();
-                    
-                    if (groupId > 0) {
-                        groups.push({ id: groupId, name: groupName });
-                    }
-                });
+                // Check if we're on mobile or desktop
+                const isMobile = jQuery('#mobileHeader').length > 0;
                 
+                if (isMobile) {
+                    // Mobile: look for group links in the current page
+                    jQuery('#group_popup_menu a').each(function() {
+                        const href = jQuery(this).attr('href');
+                        const name = jQuery(this).text().trim();
+                        
+                        if (href && href.includes('group=') && name !== 'wszystkie') {
+                            const groupMatch = href.match(/group=(\d+)/);
+                            if (groupMatch) {
+                                const groupId = parseInt(groupMatch[1]);
+                                if (groupId > 0) {
+                                    groups.push({ id: groupId, name: name });
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    // Desktop: fetch the groups page and parse the dropdown
+                    const response = await jQuery.get(
+                        game_data.link_base_pure + 'overview_villages&mode=groups'
+                    );
+                    
+                    const htmlDoc = jQuery.parseHTML(response);
+                    
+                    // Try multiple selectors for group options
+                    let foundGroups = false;
+                    
+                    // First try: standard group selector
+                    jQuery(htmlDoc).find('select[name="group"] option').each(function() {
+                        const groupId = parseInt(jQuery(this).val());
+                        const groupName = jQuery(this).text().trim();
+                        
+                        if (groupId > 0) {
+                            groups.push({ id: groupId, name: groupName });
+                            foundGroups = true;
+                        }
+                    });
+                    
+                    // Second try: look for group links if no select found
+                    if (!foundGroups) {
+                        jQuery(htmlDoc).find('a[href*="group="]').each(function() {
+                            const href = jQuery(this).attr('href');
+                            const name = jQuery(this).text().trim();
+                            
+                            if (href && name) {
+                                const groupMatch = href.match(/group=(\d+)/);
+                                if (groupMatch) {
+                                    const groupId = parseInt(groupMatch[1]);
+                                    if (groupId > 0 && !groups.find(g => g.id === groupId)) {
+                                        groups.push({ id: groupId, name: name });
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }
+                
+                console.log(`${scriptInfo} Found ${groups.length - 1} village groups:`, groups);
                 worldData.groups = groups;
+                
             } catch (error) {
                 console.error(`${scriptInfo} Error fetching groups:`, error);
                 // Fallback to default
@@ -213,13 +259,13 @@ $.getScript(
 
             // Build unit pickers
             const attackUnitPicker = buildUnitPicker(
-                [planState.config.attackUnit1, planState.config.attackUnit2].filter(Boolean),
+                planState.config.attackUnits || [],
                 'ra-attack-units',
                 'checkbox'
             );
 
             const supportUnitPicker = buildUnitPicker(
-                [planState.config.supportUnit1, planState.config.supportUnit2].filter(Boolean),
+                planState.config.supportUnits || [],
                 'ra-support-units', 
                 'checkbox'
             );
@@ -245,14 +291,14 @@ $.getScript(
                 </div>
 
                 <div class="ra-mb15">
-                    <label>${twSDK.tt('Attack Units')} (${twSDK.tt('Select 2')})</label>
+                    <label>${twSDK.tt('Attack Units')} (${twSDK.tt('Select units for timing calculations')})</label>
                     <div id="raAttackUnitsContainer">
                         ${attackUnitPicker}
                     </div>
                 </div>
 
                 <div class="ra-mb15">
-                    <label>${twSDK.tt('Support Units')} (${twSDK.tt('Select 2')})</label>
+                    <label>${twSDK.tt('Support Units')} (${twSDK.tt('Select units for timing calculations')})</label>
                     <div id="raSupportUnitsContainer">
                         ${supportUnitPicker}
                     </div>
@@ -410,13 +456,13 @@ $.getScript(
                 };
 
                 // Validate unit selections
-                if (formData.attackUnits.length !== 2) {
-                    UI.ErrorMessage(twSDK.tt('Please select exactly 2 attack units'));
+                if (formData.attackUnits.length === 0) {
+                    UI.ErrorMessage(twSDK.tt('Please select at least 1 attack unit'));
                     return;
                 }
 
-                if (formData.supportUnits.length !== 2) {
-                    UI.ErrorMessage(twSDK.tt('Please select exactly 2 support units'));
+                if (formData.supportUnits.length === 0) {
+                    UI.ErrorMessage(twSDK.tt('Please select at least 1 support unit'));
                     return;
                 }
 
@@ -442,10 +488,8 @@ $.getScript(
                 planState.config = {
                     attackGroup: formData.attackGroup,
                     supportGroup: formData.supportGroup,
-                    attackUnit1: formData.attackUnits[0],
-                    attackUnit2: formData.attackUnits[1],
-                    supportUnit1: formData.supportUnits[0],
-                    supportUnit2: formData.supportUnits[1],
+                    attackUnits: formData.attackUnits,
+                    supportUnits: formData.supportUnits,
                     coordinates: coordinates,
                     arrivalTime: formData.arrivalTime
                 };
@@ -483,10 +527,8 @@ $.getScript(
                 planState.config = {
                     attackGroup: parseInt(jQuery('#raAttackGroup').val()) || null,
                     supportGroup: parseInt(jQuery('#raSupportGroup').val()) || null,
-                    attackUnit1: attackUnits[0] || null,
-                    attackUnit2: attackUnits[1] || null,
-                    supportUnit1: supportUnits[0] || null,
-                    supportUnit2: supportUnits[1] || null,
+                    attackUnits: attackUnits,
+                    supportUnits: supportUnits,
                     coordinates: coordinates,
                     arrivalTime: jQuery('#raArrivalTime').val() || null
                 };
