@@ -38,7 +38,6 @@ var scriptConfig = {
             'All Villages': 'All Villages',
             'Loading...': 'Loading...',
             'Please select at least 1 attack unit': 'Please select at least 1 attack unit',
-            'Please select at least 1 support unit': 'Please select at least 1 support unit',
             'Please select arrival time': 'Please select arrival time',
             'Please enter at least one coordinate': 'Please enter at least one coordinate',
             'Invalid coordinate format': 'Invalid coordinate format',
@@ -61,7 +60,6 @@ var scriptConfig = {
             'All Villages': 'Todas as Aldeias',
             'Loading...': 'Carregando...',
             'Please select at least 1 attack unit': 'Selecione pelo menos 1 unidade de ataque',
-            'Please select at least 1 support unit': 'Selecione pelo menos 1 unidade de apoio',
             'Please select arrival time': 'Selecione a hora de chegada',
             'Please enter at least one coordinate': 'Digite pelo menos uma coordenada',
             'Invalid coordinate format': 'Formato de coordenada inválido',
@@ -171,8 +169,8 @@ $.getScript(
                         // Skip "wszystkie" (all villages) on mobile as it's already included
                         if (isMobile && groupName === 'wszystkie') continue;
                         
-                        // For desktop, remove parentheses from group names
-                        if (!isMobile && groupName.startsWith('(') && groupName.endsWith(')')) {
+                        // Remove parentheses from group names (both mobile and desktop)
+                        if (groupName.startsWith('(') && groupName.endsWith(')')) {
                             groupName = groupName.slice(1, -1);
                         }
                         
@@ -286,7 +284,7 @@ $.getScript(
                 </div>
 
                 <div class="ra-mb15">
-                    <label>${twSDK.tt('Support Units')} (${twSDK.tt('Select units for timing calculations')})</label>
+                    <label>${twSDK.tt('Support Units')} (${twSDK.tt('Select units for timing calculations')} - Optional)</label>
                     <div id="raSupportUnitsContainer">
                         ${supportUnitPicker}
                     </div>
@@ -449,10 +447,7 @@ $.getScript(
                     return;
                 }
 
-                if (formData.supportUnits.length === 0) {
-                    UI.ErrorMessage(twSDK.tt('Please select at least 1 support unit'));
-                    return;
-                }
+                // Support units are optional - no validation needed
 
                 // Validate arrival time
                 if (!formData.arrivalTime) {
