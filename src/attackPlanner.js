@@ -151,60 +151,48 @@ $.getScript(
                 // Check if we're on mobile or desktop
                 const isMobile = jQuery('#mobileHeader').length > 0;
                 
-                if (isMobile) {
-                    // Mobile: look for group links in the current page
-                    jQuery('#group_popup_menu a').each(function() {
-                        const href = jQuery(this).attr('href');
-                        const name = jQuery(this).text().trim();
+                // Fetch the overview villages page to get groups
+                const response = await jQuery.get(
+                    game_data.link_base_pure + 'overview_villages'
+                );
+                
+                const htmlDoc = jQuery.parseHTML(response);
+                
+                // Use the same approach as troop counter: find .vis_item and get groups
+                const visItem = jQuery(htmlDoc).find('.vis_item').get()[0];
+                
+                if (visItem) {
+                    const groupElements = visItem.getElementsByTagName(isMobile ? 'option' : 'a');
+                    
+                    for (let i = 0; i < groupElements.length; i++) {
+                        const element = groupElements[i];
+                        let groupName = element.textContent.trim();
                         
-                        if (href && href.includes('group=') && name !== 'wszystkie') {
-                            const groupMatch = href.match(/group=(\d+)/);
-                            if (groupMatch) {
-                                const groupId = parseInt(groupMatch[1]);
-                                if (groupId > 0) {
-                                    groups.push({ id: groupId, name: name });
-                                }
-                            }
-                        }
-                    });
-                } else {
-                    // Desktop: fetch the groups page and parse the dropdown
-                    const response = await jQuery.get(
-                        game_data.link_base_pure + 'overview_villages&mode=groups'
-                    );
-                    
-                    const htmlDoc = jQuery.parseHTML(response);
-                    
-                    // Try multiple selectors for group options
-                    let foundGroups = false;
-                    
-                    // First try: standard group selector
-                    jQuery(htmlDoc).find('select[name="group"] option').each(function() {
-                        const groupId = parseInt(jQuery(this).val());
-                        const groupName = jQuery(this).text().trim();
+                        // Skip "wszystkie" (all villages) on mobile as it's already included
+                        if (isMobile && groupName === 'wszystkie') continue;
                         
-                        if (groupId > 0) {
-                            groups.push({ id: groupId, name: groupName });
-                            foundGroups = true;
+                        // For desktop, remove parentheses from group names
+                        if (!isMobile && groupName.startsWith('(') && groupName.endsWith(')')) {
+                            groupName = groupName.slice(1, -1);
                         }
-                    });
-                    
-                    // Second try: look for group links if no select found
-                    if (!foundGroups) {
-                        jQuery(htmlDoc).find('a[href*="group="]').each(function() {
-                            const href = jQuery(this).attr('href');
-                            const name = jQuery(this).text().trim();
-                            
-                            if (href && name) {
+                        
+                        // Extract group ID
+                        let groupId = 0;
+                        if (isMobile) {
+                            groupId = parseInt(element.getAttribute('value')) || 0;
+                        } else {
+                            const href = element.getAttribute('href');
+                            if (href) {
                                 const groupMatch = href.match(/group=(\d+)/);
                                 if (groupMatch) {
-                                    const groupId = parseInt(groupMatch[1]);
-                                    if (groupId > 0 && !groups.find(g => g.id === groupId)) {
-                                        groups.push({ id: groupId, name: name });
-                                    }
+                                    groupId = parseInt(groupMatch[1]);
                                 }
                             }
-                        });
+                        }
+                        
+                        if (groupId > 0 && groupName) {
+                            groups.push({ id: groupId, name: groupName });
+                        }
                     }
                 }
                 

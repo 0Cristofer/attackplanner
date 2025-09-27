@@ -91,3 +91,6 @@ local/
 # User-specific configuration
 config.local.json
 settings.local.json
+
+# Reference scripts
+troop_counter.js
