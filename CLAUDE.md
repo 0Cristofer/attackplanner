@@ -169,9 +169,42 @@ function generateAttackCommands(planningData) {
 - Validate attack timing calculations for accuracy
 - Test UI responsiveness across different screen sizes
 
+## How to Use the Script
+
+### Loading the Script in Tribal Wars
+
+To use any script from this repository in the Tribal Wars game:
+
+1. **Open the Tribal Wars game** in your browser
+2. **Open the browser console** (F12 → Console tab)
+3. **Run the script loader command**:
+
+```javascript
+$.getScript('https://cdn.jsdelivr.net/gh/0Cristofer/attackplanner@main/src/massCommandTimer.js');
+```
+
+### Alternative CDN Options
+
+If the primary CDN doesn't work, try these alternatives:
+
+```javascript
+// Option B: Statically.io
+$.getScript('https://cdn.statically.io/gh/0Cristofer/attackplanner/main/src/massCommandTimer.js');
+
+// Option C: GitHack
+$.getScript('https://raw.githack.com/0Cristofer/attackplanner/main/src/massCommandTimer.js');
+```
+
+### Why Use CDN?
+
+- **CORB Protection**: GitHub's raw.githubusercontent.com is blocked by Cross-Origin Read Blocking
+- **Proper MIME Types**: CDN services serve JavaScript files with correct content types
+- **Better Performance**: CDN caching and geographic distribution
+- **Reliability**: Designed specifically for serving code files
+
 ## Common Development Commands
 
 Since this is a browser userscript:
 - **Development**: Edit files directly and reload in browser
 - **Testing**: Use browser developer tools and script debug mode
-- **Deployment**: Host on GitHub Pages or similar platform for easy installation
+- **Deployment**: Use CDN services (jsDelivr, Statically.io, GitHack) for script distribution
