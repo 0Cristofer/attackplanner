@@ -42,6 +42,17 @@ var scriptConfig = {
             'Please enter at least one coordinate': 'Please enter at least one coordinate',
             'Invalid coordinate format': 'Invalid coordinate format',
             'Step 1 completed successfully!': 'Step 1 completed successfully!',
+            'Step 2: Target Assignment': 'Step 2: Target Assignment',
+            'Target Analysis': 'Target Analysis',
+            'Select Target': 'Select Target',
+            'Reachable Villages': 'Reachable Villages',
+            'Real Attack': 'Real Attack',
+            'Fake Attack': 'Fake Attack',
+            'Assign Village': 'Assign Village',
+            'Previous Step': 'Previous Step',
+            'Next Step': 'Next Step',
+            'villages can reach this target': 'villages can reach this target',
+            'Village assignments': 'Village assignments',
         },
         pt_BR: {
             'Attack Planner': 'Planejador de Ataque',
@@ -64,6 +75,17 @@ var scriptConfig = {
             'Please enter at least one coordinate': 'Digite pelo menos uma coordenada',
             'Invalid coordinate format': 'Formato de coordenada inválido',
             'Step 1 completed successfully!': 'Passo 1 concluído com sucesso!',
+            'Step 2: Target Assignment': 'Passo 2: Atribuição de Alvos',
+            'Target Analysis': 'Análise de Alvos',
+            'Select Target': 'Selecionar Alvo',
+            'Reachable Villages': 'Aldeias Alcançáveis',
+            'Real Attack': 'Ataque Real',
+            'Fake Attack': 'Ataque Falso',
+            'Assign Village': 'Atribuir Aldeia',
+            'Previous Step': 'Passo Anterior',
+            'Next Step': 'Próximo Passo',
+            'villages can reach this target': 'aldeias podem alcançar este alvo',
+            'Village assignments': 'Atribuições de aldeias',
         },
     },
     allowedMarkets: [],
@@ -485,9 +507,9 @@ $.getScript(
                 // For testing, log the configuration
                 console.log(`${scriptInfo} Step 1 Configuration:`, planState.config);
                 
-                // TODO: Move to step 2
-                // planState.step = 2;
-                // buildCurrentStepUI();
+                // Move to step 2
+                planState.step = 2;
+                buildCurrentStepUI();
 
             } catch (error) {
                 console.error(`${scriptInfo} Step 1 validation error:`, error);
@@ -523,10 +545,342 @@ $.getScript(
             }
         }
 
-        // Placeholder functions for Step 2 and 3
-        function buildStep2UI() {
-            const content = `<div>Step 2: Target Assignment (Coming Soon)</div>`;
-            renderUI(content);
+        // Build Step 2 UI - Target Assignment
+        async function buildStep2UI() {
+            try {
+                // Show loading message first
+                const loadingContent = `
+                    <div class="ra-step-header">
+                        <h3>${twSDK.tt('Step 2: Target Assignment')}</h3>
+                    </div>
+                    <div style="text-align: center; padding: 20px;">
+                        <p>${twSDK.tt('Loading...')}</p>
+                    </div>
+                `;
+                renderUI(loadingContent);
+
+                // Calculate reachable villages for each target
+                const targetAnalysis = await analyzeTargets();
+                
+                const content = `
+                    <div class="ra-step-header">
+                        <h3>${twSDK.tt('Step 2: Target Assignment')}</h3>
+                    </div>
+
+                    <div class="ra-mb15">
+                        <h4>${twSDK.tt('Target Analysis')}</h4>
+                        <div id="raTargetAnalysis">
+                            ${buildTargetAnalysisTable(targetAnalysis)}
+                        </div>
+                    </div>
+
+                    <div class="ra-mb15" id="raTargetAssignmentSection" style="display: none;">
+                        <h4>${twSDK.tt('Village assignments')}</h4>
+                        <div id="raVillageAssignment">
+                            <!-- Village assignment will be populated here -->
+                        </div>
+                    </div>
+
+                    <div class="ra-action-buttons">
+                        <a href="#" id="raPreviousStep" class="btn btn-cancel">${twSDK.tt('Previous Step')}</a>
+                        <a href="#" id="raResetPlan" class="btn btn-cancel">${twSDK.tt('Reset')}</a>
+                        <a href="#" id="raNextStep" class="btn btn-confirm-yes" style="display: none;">${twSDK.tt('Next Step')}</a>
+                    </div>
+                `;
+
+                renderUI(content);
+                handleStep2Events();
+
+            } catch (error) {
+                console.error(`${scriptInfo} Error building Step 2 UI:`, error);
+                const errorContent = `
+                    <div class="ra-step-header">
+                        <h3>${twSDK.tt('Step 2: Target Assignment')}</h3>
+                    </div>
+                    <div style="text-align: center; padding: 20px;">
+                        <p>Error loading target analysis. Please try again.</p>
+                        <a href="#" id="raPreviousStep" class="btn btn-cancel">${twSDK.tt('Previous Step')}</a>
+                    </div>
+                `;
+                renderUI(errorContent);
+                
+                // At least bind the back button
+                jQuery('#raPreviousStep').on('click', function(e) {
+                    e.preventDefault();
+                    planState.step = 1;
+                    buildCurrentStepUI();
+                });
+            }
+        }
+
+        // Helper functions for Step 2
+
+        // Build Target Analysis Table
+        function buildTargetAnalysisTable(targetAnalysis) {
+            if (!targetAnalysis || targetAnalysis.length === 0) {
+                return `<p>No targets found</p>`;
+            }
+
+            let tableHtml = `
+                <table class="ra-table ra-table-v2" width="100%">
+                    <thead>
+                        <tr>
+                            <th>Target</th>
+                            <th>Reachable Villages</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            targetAnalysis.forEach(target => {
+                tableHtml += `
+                    <tr>
+                        <td>${target.coordinate}</td>
+                        <td>${target.reachableCount} ${twSDK.tt('villages can reach this target')}</td>
+                        <td>
+                            <a href="#" class="btn btn-confirm-yes ra-select-target" 
+                               data-target="${target.coordinate}">${twSDK.tt('Select Target')}</a>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tableHtml += `
+                    </tbody>
+                </table>
+            `;
+
+            return tableHtml;
+        }
+
+        // Analyze Targets - Calculate reachable villages using SDK
+        async function analyzeTargets() {
+            const targets = [];
+            
+            try {
+                // Get all world villages using SDK
+                const allVillages = await twSDK.worldDataAPI('village');
+                
+                // Filter to current player's villages
+                const playerVillages = twSDK.filterVillagesByPlayerIds([game_data.player.id], allVillages);
+                
+                // Filter by selected groups if specified
+                const availableVillages = await filterVillagesByGroups(playerVillages);
+                
+                for (const coordinate of planState.config.coordinates) {
+                    const reachableVillages = calculateReachableVillagesForTarget(coordinate, availableVillages);
+                    targets.push({
+                        coordinate: coordinate,
+                        reachableCount: reachableVillages.length,
+                        reachableVillages: reachableVillages
+                    });
+                }
+
+                return targets;
+            } catch (error) {
+                console.error(`${scriptInfo} Error analyzing targets:`, error);
+                return [];
+            }
+        }
+
+        // Filter villages by selected groups
+        async function filterVillagesByGroups(playerVillages) {
+            try {
+                // If both groups are "All Villages" (id 0), return all player villages
+                if (planState.config.attackGroup === 0 && 
+                    (planState.config.supportGroup === 0 || !planState.config.supportGroup)) {
+                    return playerVillages;
+                }
+
+                // For now, if specific groups are selected, we'll fetch group villages from overview
+                // This is more complex and may require additional implementation
+                // For MVP, return all player villages and handle group filtering later
+                console.log(`${scriptInfo} Group filtering not fully implemented, using all villages`);
+                return playerVillages;
+
+            } catch (error) {
+                console.error(`${scriptInfo} Error filtering villages by groups:`, error);
+                return playerVillages;
+            }
+        }
+
+        // Calculate reachable villages for a specific target
+        function calculateReachableVillagesForTarget(targetCoord, availableVillages) {
+            const reachableVillages = [];
+            
+            availableVillages.forEach(villageCoord => {
+                // Calculate distance using SDK
+                const distance = twSDK.calculateDistance(villageCoord, targetCoord);
+                
+                // For now, consider all villages reachable
+                // Later we can add arrival time constraints and unit speed calculations
+                reachableVillages.push({
+                    coordinate: villageCoord,
+                    distance: distance.toFixed(2)
+                });
+            });
+
+            // Sort by distance (closest first)
+            reachableVillages.sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
+            
+            return reachableVillages;
+        }
+
+        // Handle Step 2 Events
+        function handleStep2Events() {
+            // Previous Step
+            jQuery('#raPreviousStep').on('click', function(e) {
+                e.preventDefault();
+                planState.step = 1;
+                buildCurrentStepUI();
+            });
+
+            // Reset Plan
+            jQuery('#raResetPlan').on('click', function(e) {
+                e.preventDefault();
+                resetPlan();
+            });
+
+            // Select Target
+            jQuery('.ra-select-target').on('click', function(e) {
+                e.preventDefault();
+                const targetCoord = jQuery(this).data('target');
+                showVillageAssignment(targetCoord);
+            });
+
+            // Next Step (initially hidden)
+            jQuery('#raNextStep').on('click', function(e) {
+                e.preventDefault();
+                // Check if at least one target has assignments
+                if (planState.assignments.length > 0) {
+                    planState.step = 3;
+                    buildCurrentStepUI();
+                } else {
+                    UI.ErrorMessage('Please assign at least one village to a target');
+                }
+            });
+        }
+
+        // Show Village Assignment for Selected Target
+        async function showVillageAssignment(targetCoord) {
+            try {
+                // Find the target analysis data
+                const allVillages = await twSDK.worldDataAPI('village');
+                const playerVillages = twSDK.filterVillagesByPlayerIds([game_data.player.id], allVillages);
+                const availableVillages = await filterVillagesByGroups(playerVillages);
+                const reachableVillages = calculateReachableVillagesForTarget(targetCoord, availableVillages);
+                
+                let assignmentHtml = `
+                    <h5>${twSDK.tt('Reachable Villages')} for ${targetCoord}</h5>
+                    <div class="ra-mb10">
+                        <table class="ra-table ra-table-v2" width="100%">
+                            <thead>
+                                <tr>
+                                    <th>Village</th>
+                                    <th>Distance</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                reachableVillages.forEach(village => {
+                    assignmentHtml += `
+                        <tr>
+                            <td>${village.coordinate}</td>
+                            <td>${village.distance}</td>
+                            <td>
+                                <button class="btn btn-confirm-yes ra-assign-village" 
+                                        data-village="${village.coordinate}" 
+                                        data-target="${targetCoord}" 
+                                        data-type="real">${twSDK.tt('Real Attack')}</button>
+                                <button class="btn ra-assign-village" 
+                                        data-village="${village.coordinate}" 
+                                        data-target="${targetCoord}" 
+                                        data-type="fake">${twSDK.tt('Fake Attack')}</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                assignmentHtml += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                jQuery('#raVillageAssignment').html(assignmentHtml);
+                jQuery('#raTargetAssignmentSection').show();
+
+                // Bind assignment events
+                jQuery('.ra-assign-village').on('click', function(e) {
+                    e.preventDefault();
+                    const village = jQuery(this).data('village');
+                    const target = jQuery(this).data('target');
+                    const type = jQuery(this).data('type');
+                    
+                    assignVillageToTarget(village, target, type);
+                });
+
+            } catch (error) {
+                console.error(`${scriptInfo} Error showing village assignment:`, error);
+                UI.ErrorMessage('Failed to load village assignment');
+            }
+        }
+
+        // Assign Village to Target
+        function assignVillageToTarget(village, target, type) {
+            try {
+                // Find or create target assignment
+                let targetAssignment = planState.assignments.find(a => a.target === target);
+                if (!targetAssignment) {
+                    targetAssignment = { target: target, villages: [] };
+                    planState.assignments.push(targetAssignment);
+                }
+
+                // Add village assignment
+                const existingIndex = targetAssignment.villages.findIndex(v => v.village === village);
+                if (existingIndex >= 0) {
+                    // Update existing assignment
+                    targetAssignment.villages[existingIndex].type = type;
+                } else {
+                    // Add new assignment
+                    targetAssignment.villages.push({
+                        village: village,
+                        type: type,
+                        unit: type === 'real' && planState.config.attackUnits.length > 0 ? 
+                              planState.config.attackUnits[0] : 'spear' // Default unit
+                    });
+                }
+
+                // Handle village exclusion logic
+                if (type === 'real') {
+                    if (!planState.excludedVillages.includes(village)) {
+                        planState.excludedVillages.push(village);
+                    }
+                } else {
+                    // Remove from excluded if switching from real to fake
+                    const excludedIndex = planState.excludedVillages.indexOf(village);
+                    if (excludedIndex >= 0) {
+                        planState.excludedVillages.splice(excludedIndex, 1);
+                    }
+                }
+
+                // Save progress
+                savePlan();
+                
+                // Show success and enable next step
+                UI.SuccessMessage(`Village ${village} assigned as ${type} attack to ${target}`);
+                jQuery('#raNextStep').show();
+
+                // Refresh the assignment view
+                showVillageAssignment(target);
+
+            } catch (error) {
+                console.error(`${scriptInfo} Error assigning village:`, error);
+                UI.ErrorMessage('Failed to assign village');
+            }
         }
 
         function buildStep3UI() {
