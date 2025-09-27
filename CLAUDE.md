@@ -76,53 +76,123 @@ twSDK.init({
 - Progress bars and loading indicators
 - Custom styling injection methods
 
-## Attack Planner Architecture
+## Attack Planner Design & Implementation
 
-Based on the reference Mass Command Timer, key components include:
+### **Design Goals**
+The attack planner simplifies attack planning and execution by allowing players to:
+1. Choose targets, arrival time, and unit configurations
+2. Assign villages to attack/support each target
+3. Execute attacks via ordered command list with direct rally point links
 
-### 1. Core Planning Logic
-- **Target Coordinate Management**: Parse and validate attack coordinates
-- **Unit Speed Calculations**: Calculate travel times based on unit types
-- **Attack Timing**: Coordinate synchronized attack arrivals
-- **Unit Type Selection**: Support for different attack types (nuke, noble, support)
+### **Complete Feature Requirements**
 
-### 2. UI Components
+#### **Step 1: Initial Configuration**
+- **Attack Group**: Dropdown with all available village groups
+- **Support Group**: Dropdown with all available village groups  
+- **Attack Unit 1 & 2**: Dropdowns with all world units (for timing calculations)
+- **Support Unit 1 & 2**: Dropdowns with all world units (for timing calculations)
+- **Target Coordinates**: Textarea input (like Mass Command Timer)
+- **Arrival Time**: Absolute datetime input
+
+#### **Step 2: Target Assignment (Loop)**
+- Display target analysis: each coordinate + count of reachable villages
+- Player selects target → show reachable villages for that target
+- Player assigns villages and chooses attack type (real attack/fake attack)
+- **Village Exclusion Logic**:
+  - Fake assignments don't exclude villages from other targets
+  - Real assignments exclude villages from future real targets
+  - Villages already assigned as real cannot be selected for real attacks again
+
+#### **Step 3: Command Execution**
+- Display final command list ordered by send time
+- Show contextual info (travel time, distance, send time remaining)
+- Visually distinguish fake attacks from real attacks
+- Direct links to rally point with correct village and target pre-filled
+- **Unit Selection at Execution**: If village has both selected units available, show two buttons to choose which unit to use
+
+### **Technical Architecture**
+
+#### **Data Structures**
 ```javascript
-// Example UI structure
-const uiStructure = {
-    coordinateInput: 'textarea', // For target coordinates
-    unitSpeedSelector: 'select', // Slowest unit configuration
-    attackTimeInput: 'datetime-local', // Timing control
-    unitsPerTargetInput: 'number', // Attack intensity
-    executeButton: 'button' // Launch planning
+// Plan state structure
+const planState = {
+    step: 1, // Current step (1, 2, or 3)
+    config: {
+        attackGroup: groupId,
+        supportGroup: groupId,
+        attackUnit1: 'ram',
+        attackUnit2: 'catapult', 
+        supportUnit1: 'heavy',
+        supportUnit2: 'archer',
+        coordinates: ['500|500', '501|501'],
+        arrivalTime: Date
+    },
+    assignments: [
+        {
+            target: '500|500',
+            villages: [
+                { villageId: 123, type: 'real', unit: 'ram' },
+                { villageId: 456, type: 'fake', unit: 'spear' }
+            ]
+        }
+    ],
+    excludedVillages: [123] // Villages already assigned to real attacks
 }
 ```
 
-### 3. Data Management
-- **Local Storage Caching**: Store unit speeds and world data
-- **Dynamic Data Fetching**: Retrieve current world unit configurations
-- **Configuration Persistence**: Save user preferences
-
-### 4. Common Functions Pattern
+#### **Core Functions**
 ```javascript
-// Typical function structure
-function initializeAttackPlanner() {
-    // Setup UI
-    // Load cached data
-    // Bind event handlers
-}
+// Step 1: Configuration
+function buildConfigurationUI()
+function fetchVillageGroups()
+function fetchWorldUnits()
+function validateConfiguration()
+function saveProgress()
 
-function calculateAttackTiming(coordinates, unitSpeed, arrivalTime) {
-    // Distance calculation
-    // Travel time computation
-    // Launch time determination
-}
+// Step 2: Target Assignment  
+function buildTargetAnalysisUI()
+function calculateReachableVillages(target, arrivalTime, units)
+function assignVillageToTarget(villageId, target, type, unit)
+function updateExcludedVillages()
 
-function generateAttackCommands(planningData) {
-    // Create attack URLs
-    // Format command outputs
-}
+// Step 3: Command Execution
+function buildCommandListUI()
+function generateCommandList()
+function calculateSendTimes()
+function createRallyPointURL(villageId, target, units)
+
+// Navigation & Persistence
+function goToPreviousStep()
+function resetPlan()
+function loadSavedPlan()
+function autoSavePlan()
 ```
+
+### **Implementation Progress**
+
+#### ✅ **Completed**
+- [x] **Basic Script Structure**: SDK integration, translations, popup framework
+- [x] **Repository Setup**: Git structure, documentation, CDN deployment
+- [x] **Basic UI**: Simple popup with coordinate input and validation
+
+#### 🚧 **In Progress** 
+- [ ] **Step 1 Implementation**: Group selection and unit configuration UI
+
+#### 📋 **Todo**
+- [ ] **Data Fetching**: Village groups and world units API integration
+- [ ] **Step 2 Implementation**: Target analysis and village assignment logic  
+- [ ] **Step 3 Implementation**: Command list generation and execution
+- [ ] **Persistence System**: Auto-save, load, and navigation between steps
+- [ ] **Village Exclusion Logic**: Real vs fake attack assignment rules
+- [ ] **Rally Point Integration**: Direct links with pre-filled data
+- [ ] **Time Calculations**: Multi-unit timing with user selection options
+- [ ] **Testing & Refinement**: Cross-world compatibility and edge cases
+
+### **Current Development Status**
+- **Active Branch**: `develop`
+- **Current Step**: Implementing Step 1 UI with group and unit selection
+- **Last Update**: Basic popup with coordinate input created and tested
+- **Next Milestone**: Complete Step 1 configuration form with dropdowns
 
 ## Development Guidelines
 

@@ -26,10 +26,9 @@ var scriptConfig = {
             'Step 1: Configuration': 'Step 1: Configuration',
             'Attack Group': 'Attack Group',
             'Support Group': 'Support Group',
-            'Attack Unit 1': 'Attack Unit 1',
-            'Attack Unit 2': 'Attack Unit 2',
-            'Support Unit 1': 'Support Unit 1',
-            'Support Unit 2': 'Support Unit 2',
+            'Attack Units': 'Attack Units',
+            'Support Units': 'Support Units',
+            'Select 2': 'Select 2',
             'Target Coordinates': 'Target Coordinates',
             'Arrival Time': 'Arrival Time',
             'Enter coordinates (e.g. 500|500 501|501)': 'Enter coordinates (e.g. 500|500 501|501)',
@@ -38,7 +37,9 @@ var scriptConfig = {
             'Close': 'Close',
             'All Villages': 'All Villages',
             'Loading...': 'Loading...',
-            'Please fill all required fields': 'Please fill all required fields',
+            'Please select exactly 2 attack units': 'Please select exactly 2 attack units',
+            'Please select exactly 2 support units': 'Please select exactly 2 support units',
+            'Please select arrival time': 'Please select arrival time',
             'Please enter at least one coordinate': 'Please enter at least one coordinate',
             'Invalid coordinate format': 'Invalid coordinate format',
             'Step 1 completed successfully!': 'Step 1 completed successfully!',
@@ -48,10 +49,9 @@ var scriptConfig = {
             'Step 1: Configuration': 'Passo 1: Configuração',
             'Attack Group': 'Grupo de Ataque',
             'Support Group': 'Grupo de Apoio',
-            'Attack Unit 1': 'Unidade de Ataque 1',
-            'Attack Unit 2': 'Unidade de Ataque 2',
-            'Support Unit 1': 'Unidade de Apoio 1',
-            'Support Unit 2': 'Unidade de Apoio 2',
+            'Attack Units': 'Unidades de Ataque',
+            'Support Units': 'Unidades de Apoio',
+            'Select 2': 'Selecione 2',
             'Target Coordinates': 'Coordenadas do Alvo',
             'Arrival Time': 'Hora de Chegada',
             'Enter coordinates (e.g. 500|500 501|501)': 'Digite as coordenadas (ex. 500|500 501|501)',
@@ -60,7 +60,9 @@ var scriptConfig = {
             'Close': 'Fechar',
             'All Villages': 'Todas as Aldeias',
             'Loading...': 'Carregando...',
-            'Please fill all required fields': 'Preencha todos os campos obrigatórios',
+            'Please select exactly 2 attack units': 'Selecione exatamente 2 unidades de ataque',
+            'Please select exactly 2 support units': 'Selecione exatamente 2 unidades de apoio',
+            'Please select arrival time': 'Selecione a hora de chegada',
             'Please enter at least one coordinate': 'Digite pelo menos uma coordenada',
             'Invalid coordinate format': 'Formato de coordenada inválido',
             'Step 1 completed successfully!': 'Passo 1 concluído com sucesso!',
@@ -205,13 +207,22 @@ $.getScript(
                 `<option value="${group.id}" ${planState.config.attackGroup == group.id ? 'selected' : ''}>${group.name}</option>`
             ).join('');
 
-            const unitOptions = worldData.units.map(unit => 
-                `<option value="${unit}">${unit}</option>`
-            ).join('');
-
             const currentTime = new Date();
             currentTime.setHours(currentTime.getHours() + 1);
             const defaultTime = currentTime.toISOString().slice(0, 16);
+
+            // Build unit pickers
+            const attackUnitPicker = buildUnitPicker(
+                [planState.config.attackUnit1, planState.config.attackUnit2].filter(Boolean),
+                'ra-attack-units',
+                'checkbox'
+            );
+
+            const supportUnitPicker = buildUnitPicker(
+                [planState.config.supportUnit1, planState.config.supportUnit2].filter(Boolean),
+                'ra-support-units', 
+                'checkbox'
+            );
 
             const content = `
                 <div class="ra-step-header">
@@ -233,37 +244,17 @@ $.getScript(
                     </div>
                 </div>
 
-                <div class="ra-grid ra-grid-2 ra-mb15">
-                    <div>
-                        <label for="raAttackUnit1">${twSDK.tt('Attack Unit 1')}</label>
-                        <select id="raAttackUnit1" class="ra-select">
-                            <option value="">${twSDK.tt('Loading...')}</option>
-                            ${unitOptions}
-                        </select>
-                    </div>
-                    <div>
-                        <label for="raAttackUnit2">${twSDK.tt('Attack Unit 2')}</label>
-                        <select id="raAttackUnit2" class="ra-select">
-                            <option value="">${twSDK.tt('Loading...')}</option>
-                            ${unitOptions}
-                        </select>
+                <div class="ra-mb15">
+                    <label>${twSDK.tt('Attack Units')} (${twSDK.tt('Select 2')})</label>
+                    <div id="raAttackUnitsContainer">
+                        ${attackUnitPicker}
                     </div>
                 </div>
 
-                <div class="ra-grid ra-grid-2 ra-mb15">
-                    <div>
-                        <label for="raSupportUnit1">${twSDK.tt('Support Unit 1')}</label>
-                        <select id="raSupportUnit1" class="ra-select">
-                            <option value="">${twSDK.tt('Loading...')}</option>
-                            ${unitOptions}
-                        </select>
-                    </div>
-                    <div>
-                        <label for="raSupportUnit2">${twSDK.tt('Support Unit 2')}</label>
-                        <select id="raSupportUnit2" class="ra-select">
-                            <option value="">${twSDK.tt('Loading...')}</option>
-                            ${unitOptions}
-                        </select>
+                <div class="ra-mb15">
+                    <label>${twSDK.tt('Support Units')} (${twSDK.tt('Select 2')})</label>
+                    <div id="raSupportUnitsContainer">
+                        ${supportUnitPicker}
                     </div>
                 </div>
 
@@ -301,28 +292,68 @@ $.getScript(
 
             renderUI(content);
             
-            // Set saved values
+            // Set saved values for groups
             if (planState.config.attackGroup !== null) {
                 jQuery('#raAttackGroup').val(planState.config.attackGroup);
             }
             if (planState.config.supportGroup !== null) {
                 jQuery('#raSupportGroup').val(planState.config.supportGroup);
             }
-            if (planState.config.attackUnit1) {
-                jQuery('#raAttackUnit1').val(planState.config.attackUnit1);
-            }
-            if (planState.config.attackUnit2) {
-                jQuery('#raAttackUnit2').val(planState.config.attackUnit2);
-            }
-            if (planState.config.supportUnit1) {
-                jQuery('#raSupportUnit1').val(planState.config.supportUnit1);
-            }
-            if (planState.config.supportUnit2) {
-                jQuery('#raSupportUnit2').val(planState.config.supportUnit2);
-            }
 
             // Register event handlers
             handleStep1Events();
+        }
+
+        // Build Unit Picker with Icons
+        function buildUnitPicker(selectedUnits, nameAttribute, inputType) {
+            if (!worldData.units || worldData.units.length === 0) {
+                return `<div class="ra-loading">${twSDK.tt('Loading...')}</div>`;
+            }
+
+            let unitsTable = ``;
+            let thUnits = ``;
+            let tableRow = ``;
+
+            worldData.units.forEach((unit) => {
+                // Skip units that might not have graphics
+                if (unit === 'militia') return;
+
+                let checked = '';
+                if (selectedUnits.includes(unit)) {
+                    checked = `checked`;
+                }
+
+                thUnits += `
+                    <th class="ra-tac">
+                        <label for="${nameAttribute}_${unit}">
+                            <img src="/graphic/unit/unit_${unit}.png" alt="${unit}" title="${unit}">
+                        </label>
+                    </th>
+                `;
+
+                tableRow += `
+                    <td class="ra-tac">
+                        <input name="${nameAttribute}" type="${inputType}" ${checked} id="${nameAttribute}_${unit}" class="ra-unit-selector" value="${unit}" />
+                    </td>
+                `;
+            });
+
+            unitsTable = `
+                <table class="ra-table ra-table-v2 ra-unit-picker" width="100%">
+                    <thead>
+                        <tr>
+                            ${thUnits}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            ${tableRow}
+                        </tr>
+                    </tbody>
+                </table>
+            `;
+
+            return unitsTable;
         }
 
         // Handle Step 1 Events
@@ -346,7 +377,12 @@ $.getScript(
             });
 
             // Auto-save on input changes
-            jQuery('#raAttackGroup, #raSupportGroup, #raAttackUnit1, #raAttackUnit2, #raSupportUnit1, #raSupportUnit2, #raTargetCoordinates, #raArrivalTime').on('change input', function() {
+            jQuery('#raAttackGroup, #raSupportGroup, #raTargetCoordinates, #raArrivalTime').on('change input', function() {
+                autoSaveStep1();
+            });
+
+            // Auto-save on unit selection changes
+            jQuery('input[name="ra-attack-units"], input[name="ra-support-units"]').on('change', function() {
                 autoSaveStep1();
             });
         }
@@ -354,23 +390,39 @@ $.getScript(
         // Handle Step 1 Validation
         function handleStep1Validation() {
             try {
+                // Collect selected units
+                const attackUnits = jQuery('input[name="ra-attack-units"]:checked').map(function() {
+                    return jQuery(this).val();
+                }).get();
+
+                const supportUnits = jQuery('input[name="ra-support-units"]:checked').map(function() {
+                    return jQuery(this).val();
+                }).get();
+
                 // Collect form data
                 const formData = {
                     attackGroup: parseInt(jQuery('#raAttackGroup').val()),
                     supportGroup: parseInt(jQuery('#raSupportGroup').val()),
-                    attackUnit1: jQuery('#raAttackUnit1').val(),
-                    attackUnit2: jQuery('#raAttackUnit2').val(),
-                    supportUnit1: jQuery('#raSupportUnit1').val(),
-                    supportUnit2: jQuery('#raSupportUnit2').val(),
+                    attackUnits: attackUnits,
+                    supportUnits: supportUnits,
                     coordinatesText: jQuery('#raTargetCoordinates').val().trim(),
                     arrivalTime: jQuery('#raArrivalTime').val()
                 };
 
-                // Validate required fields
-                if (!formData.attackUnit1 || !formData.attackUnit2 || 
-                    !formData.supportUnit1 || !formData.supportUnit2 || 
-                    !formData.arrivalTime) {
-                    UI.ErrorMessage(twSDK.tt('Please fill all required fields'));
+                // Validate unit selections
+                if (formData.attackUnits.length !== 2) {
+                    UI.ErrorMessage(twSDK.tt('Please select exactly 2 attack units'));
+                    return;
+                }
+
+                if (formData.supportUnits.length !== 2) {
+                    UI.ErrorMessage(twSDK.tt('Please select exactly 2 support units'));
+                    return;
+                }
+
+                // Validate arrival time
+                if (!formData.arrivalTime) {
+                    UI.ErrorMessage(twSDK.tt('Please select arrival time'));
                     return;
                 }
 
@@ -390,10 +442,10 @@ $.getScript(
                 planState.config = {
                     attackGroup: formData.attackGroup,
                     supportGroup: formData.supportGroup,
-                    attackUnit1: formData.attackUnit1,
-                    attackUnit2: formData.attackUnit2,
-                    supportUnit1: formData.supportUnit1,
-                    supportUnit2: formData.supportUnit2,
+                    attackUnit1: formData.attackUnits[0],
+                    attackUnit2: formData.attackUnits[1],
+                    supportUnit1: formData.supportUnits[0],
+                    supportUnit2: formData.supportUnits[1],
                     coordinates: coordinates,
                     arrivalTime: formData.arrivalTime
                 };
@@ -420,13 +472,21 @@ $.getScript(
             try {
                 const coordinates = jQuery('#raTargetCoordinates').val().match(twSDK.coordsRegex) || [];
                 
+                const attackUnits = jQuery('input[name="ra-attack-units"]:checked').map(function() {
+                    return jQuery(this).val();
+                }).get();
+
+                const supportUnits = jQuery('input[name="ra-support-units"]:checked').map(function() {
+                    return jQuery(this).val();
+                }).get();
+                
                 planState.config = {
                     attackGroup: parseInt(jQuery('#raAttackGroup').val()) || null,
                     supportGroup: parseInt(jQuery('#raSupportGroup').val()) || null,
-                    attackUnit1: jQuery('#raAttackUnit1').val() || null,
-                    attackUnit2: jQuery('#raAttackUnit2').val() || null,
-                    supportUnit1: jQuery('#raSupportUnit1').val() || null,
-                    supportUnit2: jQuery('#raSupportUnit2').val() || null,
+                    attackUnit1: attackUnits[0] || null,
+                    attackUnit2: attackUnits[1] || null,
+                    supportUnit1: supportUnits[0] || null,
+                    supportUnit2: supportUnits[1] || null,
                     coordinates: coordinates,
                     arrivalTime: jQuery('#raArrivalTime').val() || null
                 };
