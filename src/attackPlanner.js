@@ -169,8 +169,9 @@ $.getScript(
                         // Skip "wszystkie" (all villages) on mobile as it's already included
                         if (isMobile && groupName === 'wszystkie') continue;
                         
-                        // Remove parentheses from group names (both mobile and desktop)
-                        if (groupName.startsWith('(') && groupName.endsWith(')')) {
+                        // Remove brackets/parentheses from group names (both mobile and desktop)
+                        if ((groupName.startsWith('(') && groupName.endsWith(')')) ||
+                            (groupName.startsWith('[') && groupName.endsWith(']'))) {
                             groupName = groupName.slice(1, -1);
                         }
                         
